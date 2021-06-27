@@ -1,0 +1,13 @@
+{
+  "name": "Stream Parser",
+  "apiVersion": "1.0.0",
+  "author": "Andre Obi",
+  "version": "0.0.1",
+  "description": "A data input stream is parsed to find a packet and slice it into upper layer format",
+  "extensions": {
+    "Stream Parser": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}
