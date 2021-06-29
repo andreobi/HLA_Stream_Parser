@@ -1,13 +1,10 @@
+High Level Analyzer - Addon: Stream Parser
 
-Stream Parser
-
-High Level Analyzer - Stream Parser
-For more information and documentation, please go to
+For more information and documentation about the product and framework, please go to
 https://support.saleae.com/extensions/high-level-analyzer-extensions
 
 The software is provided as it is without any liability and without any warranty.
-The author will take no responsibility.
-
+The author will take no responsibility and can't deliver any support.
 
 A stream packet can contain the following parts:
 - Time to Packet: before a new packet start, it looks for an idle time in ms, max=1s
