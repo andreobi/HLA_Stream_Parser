@@ -1,5 +1,9 @@
 High Level Analyzer - Addon: Stream Parser
 
+Version 
+- 0.01 first release
+- 0.02 added crc options 
+
 For more information and documentation about the product and framework, please go to
 https://support.saleae.com/extensions/high-level-analyzer-extensions
 
