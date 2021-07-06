@@ -87,7 +87,12 @@ class Hla(HighLevelAnalyzer):
     #
     data_pad_length = NumberSetting(min_value=0, max_value=65535)
     #
-    crc_type = ChoicesSetting(choices=('xor', 'crc8', 'crc16', 'crc32'))
+    crc_polynomial = StringSetting()
+    crc_start_value = StringSetting()
+    crc_finalize_value = StringSetting()
+    crc_mirror_inputs = ChoicesSetting(choices=('ON', 'OFF'))
+    crc_mirror_results = ChoicesSetting(choices=('ON', 'OFF'))
+    crc_type = ChoicesSetting(choices=('8', '16', '32'))
     crc_cnt_start = ChoicesSetting(
         choices=('NO_CRC', 'preamble', 'header', 'header pad', 'length', 'length pad', 'data'))
     crc_length = NumberSetting(min_value=0, max_value=4)
@@ -183,7 +188,7 @@ class Hla(HighLevelAnalyzer):
 
     # stream start
     def s0(self):
-        #print('s0 Stream start', self.frame.start_time)
+        # print('s0 Stream start', self.frame.start_time)
         self.state_init()
         self.packet_pos = 1
         self.return_value.append(AnalyzerFrame('streamstart', self.frame.start_time, self.frame.end_time, {}))
@@ -192,7 +197,7 @@ class Hla(HighLevelAnalyzer):
     # time to start
     def s1(self):
         if self.packetstarttime <= self.delta_time:
-            #print('s1')
+            # print('s1')
             self.flag_time_to_head = True
             self.state += 1
             self.state_ref_pos += self.preamble_length
@@ -213,7 +218,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos += self.header_length
             self.state_func[self.state]()
         else:
-            #print('S2')
+            # print('S2')
             self.return_value.append(AnalyzerFrame('preamble', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -259,7 +264,7 @@ class Hla(HighLevelAnalyzer):
     def s3(self):
         if self.packetstarttime:
             if self.header_length > 0:  # fixed header length => linear search with preamble
-                #print('S3 tth')
+                # print('S3 tth')
                 header_pos = int(self.packet_pos - self.state_ref_pos + self.header_length - 1)
                 # check for trigger mask
                 if self.frame.data['data'][self.data_pos] & self.triggerMask[header_pos] != \
@@ -300,7 +305,7 @@ class Hla(HighLevelAnalyzer):
                     return
 
         else:  # no time trigger; flexible or fix header length only
-            #print('S3 flex')
+            # print('S3 flex')
             hp, dp = self.header_parser(self.frame.data['data'][self.data_pos])
             if hp != -1:  # header found
                 self.flag_header = True
@@ -352,7 +357,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos += self.length_length
             self.state_func[self.state]()
         else:
-            #print('S4')
+            # print('S4')
             self.return_value.append(AnalyzerFrame('headerpad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -383,7 +388,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos += self.length_pad_length
             self.state_func[self.state]()
         else:
-            #print('S5')
+            # print('S5')
             length_pos = int(self.packet_pos - self.state_ref_pos + self.length_length - 1)
             length_dat = self.frame.data['data'][self.data_pos] & self.length_mask_bytes[length_pos]
             for b in bin(self.length_mask_bytes[length_pos])[2:]:
@@ -400,7 +405,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos = self.packet_length - self.data_pad_length - self.crc_length - self.crc_pad_length
             self.state_func[self.state]()
         else:
-            #print('S6')
+            # print('S6')
             self.return_value.append(AnalyzerFrame('lengthpad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -412,7 +417,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos += self.data_pad_length
             self.state_func[self.state]()
         else:
-            #print('S7')
+            # print('S7')
             self.return_value.append(AnalyzerFrame('data', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -423,7 +428,7 @@ class Hla(HighLevelAnalyzer):
             self.state_ref_pos += self.crc_length
             self.state_func[self.state]()
         else:
-            #print('S8')
+            # print('S8')
             self.return_value.append(AnalyzerFrame('datapad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -434,7 +439,7 @@ class Hla(HighLevelAnalyzer):
             self.state += 1
             self.state_func[self.state]()
         else:
-            #print('S9')
+            # print('S9')
             crc_pos = int(self.packet_pos - self.state_ref_pos + self.crc_length - 1)
             crc_dat = self.frame.data['data'][self.data_pos]
             self.crc_value += (crc_dat << (int(self.crc_order[crc_pos]) * 8))
@@ -449,7 +454,7 @@ class Hla(HighLevelAnalyzer):
             self.state += 1
             self.state_func[self.state]()
         else:
-            #print('S10')
+            # print('S10')
             self.return_value.append(AnalyzerFrame('crcpad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
 
@@ -459,11 +464,11 @@ class Hla(HighLevelAnalyzer):
             self.state += 1
             self.state_func[self.state]()
         elif self.packet_pos < self.packet_fix_length:
-            #print('S11')
+            # print('S11')
             self.return_value.append(AnalyzerFrame('packetpad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
         elif self.packet_pos == self.packet_fix_length:
-            #print('S11')
+            # print('S11')
             self.state += 1
             self.return_value.append(AnalyzerFrame('packetpad', self.frame.start_time, self.frame.end_time, {
                 'data': self.frame.data['data'][self.data_pos].to_bytes(1, 'big')}))
@@ -473,7 +478,7 @@ class Hla(HighLevelAnalyzer):
 
     # packet end
     def s12(self):
-        #print('S12')
+        # print('S12')
         self.flag_end = True
         self.flag_trigger_pend = True
         self.trigger_start_time = self.frame.end_time
@@ -496,7 +501,7 @@ class Hla(HighLevelAnalyzer):
 
         self.state = 0
         self.state_func = (self.s0, self.s1, self.s2, self.s3, self.s4, self.s5, self.s6, self.s7, self.s8, self.s9,
-                          self.s10, self.s11, self.s12)
+                           self.s10, self.s11, self.s12)
         self.flag_time_to_head = False
         self.flag_header = False
         self.flag_header_match = [True] * 4
@@ -592,21 +597,46 @@ class Hla(HighLevelAnalyzer):
         elif self.length_cnt_start == 'data':
             self.packet_length_shift = self.preamble_length + self.header_length + self.header_pad_length + self.length_length + self.length_pad_length
         #
-        self.crc_value_init = {'xor': self.crc_xor_init, 'crc8': self.crc_8_init,
-                               'crc16': self.crc_16_init, 'crc32': self.crc_32_init}
-        self.crc_value_finalize = {'xor': self.crc_xor_finalize, 'crc8': self.crc_8_finalize,
-                                   'crc16': self.crc_16_finalize, 'crc32': self.crc_32_finalize}
-        self.crc_func = {'xor': self.crc_xor_update, 'crc8': self.crc_8_update,
-                         'crc16': self.crc_16_update, 'crc32': self.crc_32_update}
+        # crc helper
+        self.crc_mask = {'8': 0x000000ff, '16': 0x0000ffff, '32': 0xffffffff}
+        self.crc_msb = {'8': 0x00000080, '16': 0x00008000, '32': 0x80000000}
+        self.crc_shift = {'8': 0, '16': 8, '32': 24}
+        self.crc_poly_lookup = [0] * 256
+        self.crc_mbyte_lookup = [0] * 256
+        # crc definition
+        # self.crc_type = '8'
+        self.crc_poly = int.from_bytes(Hla.convert_hexstr_to_bytes(self.crc_polynomial), 'big')
+        self.crc_init = int.from_bytes(Hla.convert_hexstr_to_bytes(self.crc_start_value), 'big')
+        self.crc_finalize = int.from_bytes(Hla.convert_hexstr_to_bytes(self.crc_finalize_value), 'big')
+        if self.crc_type == '8':
+            self.crc_poly >>= 24
+            self.crc_init >>= 24
+            self.crc_finalize >>= 24
+        elif self.crc_type == '16':
+            self.crc_poly >>= 16
+            self.crc_init >>= 16
+            self.crc_finalize >>= 16
+        self.crc_mirror_input = False
+        if self.crc_mirror_inputs == 'ON':
+            self.crc_mirror_input = True
+        self.crc_mirror_result = False
+        if self.crc_mirror_results == 'ON':
+            self.crc_mirror_result = True
+        # crc sum
+        self.crc_def_sum = 0
+        # crc sum after finalize
+        self.crc_def_result = 0
         #
+        self.crc_def_create_mbyte_table()
+        self.crc_def_create_poly_table()
+        # crc state
         self.crc_flag_docrc = True
         self.crc_flag_init = False
         self.crc_flag_add = False
         self.crc_flag_done = False
         self.crc_flag_checked = False
         self.crc_flag_okay = False
-        self.crc_sum = 0
-        self.crc_poly = 1
+        # crc info from packet
         self.crc_value = 0
         self.crc_length_shift = 0
         if self.crc_cnt_start == 'header':
@@ -623,24 +653,28 @@ class Hla(HighLevelAnalyzer):
             self.crc_flag_docrc = False
         print()
         print('!--- Config ----------------')
-        print('Header mask   :', ''.join(format(x, '02x') for x in self.headerMask))
+        print('Header mask     :', ''.join(format(x, '02x') for x in self.headerMask))
         for i in range(0, 4):
-            print('Header', i, 'value:', ''.join(format(x, '02x') for x in self.header_data[i]), self.header_active[i])
-        print('Trigger mask  :', ''.join(format(x, '02x') for x in self.triggerMask))
-        print('Trigger value :', ''.join(format(x, '02x') for x in self.triggerValue))
-        print('Trigger Tmax  :', self.triggerTmax * 1000, '[ms]')
+            print('Header', i, 'value  :', ''.join(format(x, '02x') for x in self.header_data[i]), self.header_active[i])
+        print('Trigger mask    :', ''.join(format(x, '02x') for x in self.triggerMask))
+        print('Trigger value   :', ''.join(format(x, '02x') for x in self.triggerValue))
+        print('Trigger Tmax    :', self.triggerTmax * 1000, '[ms]')
         if self.packet_fix_length > 0:
-            print('Packet min len:', int(self.packet_fix_length))
+            print('Packet min len  :', int(self.packet_fix_length))
         if self.length_length == 0:
-            print('length total  :', int(self.length_fix + self.packet_length_shift + self.length_offset))
+            print('length total    :', int(self.length_fix + self.packet_length_shift + self.length_offset))
         else:
-            print('P-Count start :', self.length_cnt_start)
-            print('length total  :', 'Len(stream) + ', int(self.packet_length_shift + self.length_offset))
+            print('P-Count start   :', self.length_cnt_start)
+            print('length total    :', 'Len(stream) + ', int(self.packet_length_shift + self.length_offset))
             if self.length_length == 1:
-                print('Length mask   :', format(self.length_mask_bytes[0], '02x'))
+                print('Length mask     :', format(self.length_mask_bytes[0], '02x'))
             else:
-                print('Length mask   :', format(self.length_mask_bytes[0], '02x'),
+                print('Length mask     :', format(self.length_mask_bytes[0], '02x'),
                       format(self.length_mask_bytes[1], '02x'))
+        print('CRC polynom     :', hex(self.crc_poly))
+        print('CRC start v     :', hex(self.crc_init))
+        print('CRC finalizer   :', hex(self.crc_finalize))
+        print('CRC mirror input:', self.crc_mirror_input, ' result:', self.crc_mirror_result)
 
     def decode(self, frame: AnalyzerFrame):
         if frame.type == 'data':
@@ -728,111 +762,90 @@ class Hla(HighLevelAnalyzer):
     def do_crc(self):
         if self.packet_pos > self.crc_length_shift:
             if not self.crc_flag_init:
-                self.crc_init()
+                self.crc_def_init()
 
             if self.crc_flag_add:
                 data_v = self.frame.data['data'][self.data_pos]
-                self.crc_add(data_v)
+                self.crc_def_add(data_v)
                 data_v = data_v.to_bytes(1, 'big')
                 self.return_value.append(AnalyzerFrame('crcadd', self.frame.start_time, self.frame.end_time,
-                                                       {'data': data_v}))
+                                                       {'data': hex(self.crc_def_result)}))
 
             if self.crc_flag_done:
-                self.crc_finalize()
+                self.crc_def_finalize()
                 if self.crc_flag_okay:
                     crc_result = 'OK'
                 else:
                     crc_result = 'ER'
                 self.return_value.append(AnalyzerFrame('crcend', self.frame.start_time, self.frame.end_time,
-                                                       {'stat': crc_result, 'sum': self.crc_sum.to_bytes(4, 'big'),
+                                                       {'stat': crc_result, 'sum': self.crc_def_result.to_bytes(4, 'big'),
                                                         'value': self.crc_value.to_bytes(4, 'big')}))
 
     #
-    def crc_init(self):
+    def crc_def_init(self):
         self.crc_flag_init = True
         self.crc_flag_add = True
         self.crc_flag_done = False
         self.crc_flag_okay = False
-        self.crc_value_init[self.crc_type]()
+        self.crc_def_sum = self.crc_init
 
     #
-    def crc_add(self, data):
-        self.crc_func[self.crc_type](data)
-        #
+    def crc_def_add(self, value: int):
+        if self.crc_mirror_input:
+            value = self.crc_mbyte_lookup[value]
+        crc_pos = (value ^ (self.crc_def_sum >> self.crc_shift[self.crc_type])) & 0xff
+        if self.crc_type == 8:
+            self.crc_def_sum = self.crc_poly_lookup[int(crc_pos)]  # 8
+        else:
+            self.crc_def_sum = ((self.crc_def_sum << 8) ^ self.crc_poly_lookup[int(crc_pos)]) \
+                               & self.crc_mask[self.crc_type]  # 16 or 32
+        value = self.crc_def_sum
+        # do always a final calculation to show intermediate results
+        if self.crc_mirror_result:
+            if self.crc_type == '8':
+                value = self.crc_mbyte_lookup[value]
+            elif self.crc_type == '16':
+                temp = value
+                value = (self.crc_mbyte_lookup[temp & 0xff]) << 8
+                value |= self.crc_mbyte_lookup[(temp >> 8) & 0xff]
+            else:
+                temp = value
+                value = (self.crc_mbyte_lookup[temp & 0xff]) << 24
+                value |= (self.crc_mbyte_lookup[(temp >> 8) & 0xff]) << 16
+                value |= (self.crc_mbyte_lookup[(temp >> 16) & 0xff]) << 8
+                value |= self.crc_mbyte_lookup[(temp >> 24) & 0xff]
+        self.crc_def_result = value ^ self.crc_finalize
 
     #
-    def crc_finalize(self):
-        self.crc_value_finalize[self.crc_type]()
-        if self.crc_sum == self.crc_value:
+    def crc_def_finalize(self):
+        if self.crc_def_result == self.crc_value:
             self.crc_flag_okay = True
         self.crc_flag_done = False
         self.crc_flag_checked = True
 
     #
-    # add your crc_value_init and crc_value_finalize in --init--
-    # keep all crc dic in sync!
-    # the crc is always updated even there is no packet, but init and finalize define the thresholds
-    #
-    # ------- init
-    #
-    def crc_xor_init(self):
-        self.crc_sum = 0x00
+    def crc_def_create_poly_table(self):
+        for i in range(0, 256):
+            current = i << self.crc_shift[self.crc_type]
+            for _ in range(0, 8):
+                if current & (self.crc_msb[self.crc_type]):
+                    current <<= 1
+                    current &= self.crc_mask[self.crc_type]
+                    current ^= self.crc_poly
+                else:
+                    current <<= 1
+                    current &= self.crc_mask[self.crc_type]
+            self.crc_poly_lookup[int(i)] = current
 
     #
-    def crc_8_init(self):
-        self.crc_sum = 0x00
-        self.crc_poly = 0x07
-
-    #
-    def crc_16_init(self):
-        self.crc_sum = 0X0000
-
-    #
-    def crc_32_init(self):
-        self.crc_sum = 0x00000000
-
-    # ------- update
-    #
-    def crc_xor_update(self, data):
-        self.crc_sum ^= int(data)
-
-    #
-    def crc_8_update(self, data):
-        crc_u = data
-        crc_u ^= self.crc_sum
-        for i in range(0, 8):
-            if crc_u & 0x80:
-                crc_u = (self.crc_poly ^ (crc_u << 1)) & 0xff
-            else:
-                crc_u = (crc_u << 1) & 0xff
-        self.crc_sum = crc_u
-
-    # crc16_kermit
-    def crc_16_update(self, data):
-        data ^= (self.crc_sum & 0xff)
-        data = (data ^ (data << 4)) & 0xff
-        self.crc_sum = (((data << 8) & 0xff00) | ((self.crc_sum & 0xff00) >> 8)) ^ ((data >> 4) & 0x00ff) ^ ((data << 3) & 0xffff)
-
-    #
-    def crc_32_update(self, data):
-        self.crc_sum ^= data
-
-    # ------- finalize
-    #
-    def crc_xor_finalize(self):
-        self.crc_sum ^= 0xFF
-
-    #
-    def crc_8_finalize(self):
-        self.crc_sum ^= 0x00
-
-    #
-    def crc_16_finalize(self):
-        self.crc_sum ^= 0x0000
-
-    #
-    def crc_32_finalize(self):
-        self.crc_sum ^= 0xFFFFFFFF
+    def crc_def_create_mbyte_table(self):
+        for i in range(0, 256):
+            result = 0
+            b = i
+            for _ in range(0, 8):
+                result = (result << 1) + (b & 1)
+                b >>= 1
+            self.crc_mbyte_lookup[i] = result
 
 
 # file end
