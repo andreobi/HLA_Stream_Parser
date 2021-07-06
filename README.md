@@ -50,13 +50,18 @@ A pad(ding) is used to jump over packet bytes which can't be handled by this par
  
 There are almost no plausibility check => define '....' and you get something
 
+New CRC definition options
+It is now possible to define the following parameters for a crc
+- crc type 8, 16 or 32 bits
+- start value
+- finalize value
+- polymon value
+- mirror for input and final output
+the crc intermediate result is shown for each byte
+
 open topics
-- crc implementation: please implement it according to your own needs
-	  there is no crc32, it is just a place holder
-      there will be no update on this topic
 - error handling e.g. Stream error
-      so fare there was no need to handle errors
-      nothing planed on this topic
+  so fare there was no need to handle errors - nothing planed on this topic
 
 topics that could be improved
 - output after timeout and potential header
