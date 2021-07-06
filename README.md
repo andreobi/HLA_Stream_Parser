@@ -57,6 +57,7 @@ It is now possible to define the following parameters for a crc
 - finalize value
 - polymon value
 - mirror for input and final output
+
 the crc intermediate result is shown for each byte
 
 open topics
